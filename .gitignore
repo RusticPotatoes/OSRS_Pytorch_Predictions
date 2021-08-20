@@ -115,3 +115,6 @@ dmypy.json
 
 # images 
 *.png 
+
+# exclude img files for readme.md
+!resources/*.png
