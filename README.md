@@ -22,6 +22,7 @@
     ```bash
     python /path/to/project/pytorch_predictions.py
     ```
+5. Images will be generated and placed in an img folder located in the root project directory.  This directory includes sub folders for all prices, training, and forecast images. 
 
 ## Citations:
 ### Web
