@@ -17,6 +17,9 @@ parent_dir = os.path.dirname(os.path.realpath(__file__))
 models_dir = os.path.join(parent_dir,"models")
 features_dir = os.path.join(models_dir,"features")
 img_dir = os.path.join(parent_dir,'imgs')
+forecast_dir=os.path.join(img_dir,'forecasts')
+training_dir=os.path.join(img_dir,'trainings')
+prices_dir=os.path.join(img_dir,'prices')
 data_dir = os.path.join(parent_dir,'data')
 items_to_predict_file=os.path.join(parent_dir,"items_to_predict.csv")
 
@@ -26,16 +29,16 @@ items_to_predict_file=os.path.join(parent_dir,"items_to_predict.csv")
 #high_volume = sell_quantity = highPriceVolume
 
 def main():
-	global parent_dir,models_dir,features_dir,img_dir,data_dir,items_to_predict_file
+	global parent_dir,models_dir,features_dir,img_dir,data_dir,items_to_predict_file,forecast_dir,training_dir,prices_dir
 	
 	##########################
 	#### config variables ####
 	##########################
 	save_img=True #saves to img folder
-	lookback=20 #choose a sequence length
-	num_epochs = 500
+	lookback=40 #choose a sequence length
+	num_epochs = 400
 	verbose = True
-	fut_pred = 40
+	fut_pred = 20
 	##########################
 	##########################
 
@@ -89,14 +92,20 @@ def main():
 								title=(item_to_predict), 
 								xlabel='Date', 
 								ylabel=f'{items_to_predict_df.columns[1]}')
-				utils.save_plot_to_png(item_to_predict_dataset_plot, f"{item_to_predict}_{feature_to_predict_name}_history.png",img_dir)
+				utils.save_plot_to_png(item_to_predict_dataset_plot, f"{item_to_predict}_{feature_to_predict_name}_history.png",prices_dir)
 
 			# normalizing 
-			scaler = MinMaxScaler(feature_range=(-1,1))
+			# should not use min max scaling for price data that has no theoretical max value
+			## 			scaler = MinMaxScaler(feature_range=(-1,1))
+			##			price_reshaped= price.values.reshape(-1,1)
+			# 			#scale the data
+			#			price_scaled =scaler.fit_transform(price_reshaped)
+			# standardization by normalization eg (values-mean)/std
+  			# normalized_df, df_std, df_mean
+			price_normalized_df, price_std, price_mean = utils.normalizer(price)
 			price_reshaped= price.values.reshape(-1,1)
-
-			# scale the data
-			price_scaled =scaler.fit_transform(price_reshaped)
+			price_normalized_reshaped_df= price_normalized_df.values.reshape(-1,1)
+			price_scaled=price_normalized_reshaped_df
 
 			# needed for later forecasting 1,X,1 shape eg 1,300,1
 			price_scaled_reshaped_3d = price_scaled.reshape(1,price.shape[0],1)
@@ -111,9 +120,9 @@ def main():
 
 			# setup torch tensors
 			x_train_tensor = torch.from_numpy(x_train).type(torch.Tensor)
-			if verbose: print(type(x_train_tensor))
+			#if verbose: print(type(x_train_tensor))
 			x_test_tensor = torch.from_numpy(x_test).type(torch.Tensor)
-			if verbose: print(type(x_test_tensor))
+			#if verbose: print(type(x_test_tensor))
 
 			# lstm y train and test
 			y_train_lstm = torch.from_numpy(y_train).type(torch.Tensor)
@@ -127,31 +136,38 @@ def main():
 
 			################# use the LSTM model #################
 			model_lstm = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
+			
 			criterion = torch.nn.MSELoss(reduction='mean')
 			optimiser_lstm = torch.optim.Adam(model_lstm.parameters(), lr=0.01)
 			hist_lstm = np.zeros(num_epochs)
-			
+
 			# train predictions
 			y_train_pred_lstm, hist_lstm = trainers.train(model_lstm, criterion, optimiser_lstm, num_epochs, x_train_tensor, y_train_lstm, verbose)
 			# prediction lstm and original rrom lstm 
 			# inverse predictions from train
-			y_train_pred_lstm_inverse = scaler.inverse_transform(y_train_pred_lstm.detach().numpy())
+			#y_train_pred_lstm_inverse = scaler.inverse_transform(y_train_pred_lstm.detach().numpy())
+			y_train_pred_lstm_inverse = utils.unnormalizer(y_train_pred_lstm.detach().numpy(),price_std,price_mean)
 			y_train_pred_lstm_inverse_df = pd.DataFrame(y_train_pred_lstm_inverse)
 
-			y_train_lstm_inverse = scaler.inverse_transform(y_train_lstm.detach().numpy())
+
+			#y_train_lstm_inverse = scaler.inverse_transform(y_train_lstm.detach().numpy())
+			y_train_lstm_inverse = utils.unnormalizer(y_train_lstm.detach().numpy(),price_std,price_mean)
 			y_train_lstm_inverse_df = pd.DataFrame(y_train_lstm_inverse)
 			# plot original and prediction graphs with training loss
 			if save_img:
 				dual_plot_lstm = plot.plot_dual(original=y_train_lstm_inverse_df, predict=y_train_pred_lstm_inverse_df, hist=hist_lstm, modelname="LSTM", title=f"{item_to_predict}", xlabel="Date", ylabel=f"Gold (GP) [{feature_to_predict_name}]")
-				utils.save_plot_to_png(dual_plot_lstm, f"lstm_dual_{item_to_predict}_{feature_to_predict_name}.png",img_dir)
+				utils.save_plot_to_png(dual_plot_lstm, f"lstm_dual_{item_to_predict}_{feature_to_predict_name}.png",training_dir)
 
 			#test and then inverse test predictions 
+			model_lstm.eval()
 			y_test_pred_lstm= model_lstm(x_test_tensor) 
 			##########################################
-			y_test_pred_lstm_inverse = scaler.inverse_transform(y_test_pred_lstm.detach().numpy())
+			#y_test_pred_lstm_inverse = scaler.inverse_transform(y_test_pred_lstm.detach().numpy())
+			y_test_pred_lstm_inverse = utils.unnormalizer(y_test_pred_lstm.detach().numpy(),price_std,price_mean)
 			y_test_pred_lstm_inverse_df=pd.DataFrame(y_test_pred_lstm_inverse)
 
-			y_test_lstm_inverse = scaler.inverse_transform(y_test_lstm.detach().numpy())
+			#y_test_lstm_inverse = scaler.inverse_transform(y_test_lstm.detach().numpy())
+			y_test_lstm_inverse = utils.unnormalizer(y_test_lstm.detach().numpy(),price_std,price_mean)
 			y_test_lstm_inverse_df = pd.DataFrame(y_test_lstm_inverse)
 
 			# calculate root mean squared error
@@ -162,45 +178,53 @@ def main():
 	
 			lstm_results.append([trainScore_lstm,testScore_lstm])
 			########################################################################################################
- 
+
 			#future prediction https://stackabuse.com/time-series-prediction-using-lstm-with-pytorch-in-python/
 			
 			#use learned model, use forecast to predict into future, forecast does not train model
 			z_forecast_lstm_scaled_reshaped_3d = model_lstm.forecast(dataset=price_scaled_reshaped_3d,lookback=lookback,fut_pred=fut_pred)#model_lstm.forecast(dataset=z_future_tensor,lookback=lookback,fut_pred=fut_pred)
 			#remove scale by running inverse transform, and reshape back to 2d array
-			z_forecast_lstm_inverse = scaler.inverse_transform(z_forecast_lstm_scaled_reshaped_3d[0,-fut_pred:,:])
+			#z_forecast_lstm_inverse = scaler.inverse_transform(z_forecast_lstm_scaled_reshaped_3d[0,-fut_pred:,:])
+			z_forecast_subset=z_forecast_lstm_scaled_reshaped_3d[0,-fut_pred:,:]
+			z_forecast_lstm_inverse = utils.unnormalizer(z_forecast_lstm_scaled_reshaped_3d[0,-fut_pred:,:],price_std,price_mean)
 			z_test_pred_lstm_inverse_df=pd.DataFrame(z_forecast_lstm_inverse)
-			if verbose: print(z_test_pred_lstm_inverse_df.tail(fut_pred+1))
+			#if verbose: print(z_test_pred_lstm_inverse_df.tail(fut_pred+1))
 
 			##########################################################################################################################
 
 			# shift train predictions for plotting
-			trainPredictPlot = np.empty_like(z_forecast_lstm_scaled_reshaped_3d[0,:,:])
+			trainPredictPlot = np.empty((price.shape[0]+fut_pred,1))
 			trainPredictPlot[:, :] = np.nan
+			print(f"trainPredictPlot: {lookback}: {len(y_train_pred_lstm_inverse)+lookback} , :")
 			trainPredictPlot[lookback:len(y_train_pred_lstm_inverse)+lookback, :] = y_train_pred_lstm_inverse
 
 			# shift test predictions for plotting
-			testPredictPlot = np.empty_like(z_forecast_lstm_scaled_reshaped_3d[0,:,:])
+			testPredictPlot =  np.empty((price.shape[0]+fut_pred,1))
 			testPredictPlot[:, :] = np.nan
-
-			testPredictPlot[len(y_train_pred_lstm_inverse)+lookback-1:len(price)-1, :] = y_test_pred_lstm_inverse
-
-			forecastPredictPlot= np.empty_like(z_forecast_lstm_scaled_reshaped_3d[0,:,:])
+			print(f"test predict plot: {len(y_train_pred_lstm_inverse)+lookback} : {len(price)} , :")
+			testPredictPlot[len(y_train_pred_lstm_inverse)+lookback:len(price), :] = y_test_pred_lstm_inverse
+			
+			forecastPredictPlot=  np.empty((price.shape[0]+fut_pred,1))
 			forecastPredictPlot[:, :] = np.nan
-			forecastPredictPlot[len(z_forecast_lstm_scaled_reshaped_3d[0,:,:])-(fut_pred):len(z_forecast_lstm_scaled_reshaped_3d[0,:,:]),:]=z_forecast_lstm_inverse
+			print(f"forecast predict plot: {price.shape[0]} : {price.shape[0]+fut_pred} , :")
+			forecastPredictPlot[price.shape[0]:price.shape[0]+fut_pred,:]=z_forecast_lstm_inverse
 
-			originalPlot = np.empty_like(z_forecast_lstm_scaled_reshaped_3d[0,:,:])
-			originalPlot[:,:] = np.nan
+			originalPlot =  np.empty((price.shape[0]+fut_pred,1))
+			originalPlot[:, :] = np.nan
 			print(f"{len(price_reshaped)}:,:")
 			originalPlot[0:len(price_reshaped),:]= price_reshaped
 
-			predictions = np.append(trainPredictPlot, testPredictPlot, axis=1)
+			predictions = trainPredictPlot
+			predictions = np.append(predictions, testPredictPlot, axis=1)
 			predictions = np.append(predictions, forecastPredictPlot, axis=1)
 			predictions = np.append(predictions, originalPlot, axis=1)
 			result = pd.DataFrame(predictions)
 
 			test_pred_fig = plot.plot_multi(result,title=f"{item_to_predict} (LSTM)",feature=feature_to_predict_name)
-			output_img=os.path.join(img_dir,f"lstm_dual_{item_to_predict}_{feature_to_predict_name}_train_test_forcast.png").replace(" ","_")
+			if not os.path.exists(forecast_dir):
+				mode = 0o666
+				os.makedirs(forecast_dir)
+			output_img=os.path.join(forecast_dir,f"lstm_dual_{item_to_predict}_{feature_to_predict_name}_train_test_forcast.png").replace(" ","_")
 			print(output_img)
 			test_pred_fig.write_image(engine="kaleido", file=output_img)
 

@@ -16,8 +16,9 @@ class LSTM(nn.Module):
 		self.fc = nn.Linear(hidden_dim, output_dim)
 
 	def forward(self, x):  
-		h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
-		c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim).requires_grad_()
+		h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim, device=x.device).requires_grad_()
+		c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_dim, device=x.device).requires_grad_()
+
 		#detatch=(h0.detach(), c0.detach())
 		out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
 		out = self.fc(out[:, -1, :]) 
@@ -35,7 +36,7 @@ class LSTM(nn.Module):
 				torch_tensor_dataset = torch.cat((torch_tensor_dataset,
 												((result)[np.newaxis,:])),
 												dim=1)
-		return (torch_tensor_dataset).detach().numpy()
+		return (torch_tensor_dataset[-1:,-fut_pred:,:]).detach().numpy()
 
 
 class GRU(nn.Module):

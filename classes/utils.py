@@ -99,7 +99,7 @@ def split_data_3d(dataset, lookback, lookforward=0):
 	if lookforward>0:
 		forcast=0
 	
-	return [x_train, y_train, x_test, y_test]
+	return x_train, y_train, x_test, y_test
 
 def scale_data(scaler, transformer, data, inverse=False):
 	if isinstance(data, pd.DataFrame):	
@@ -138,3 +138,16 @@ def forecast(model,dataset,lookback,fut_pred): # abstracted to models
 								 			 (results)[np.newaxis,:]),
 								 			 dim=1)
 	return (torch_tensor_dataset).detach().numpy()
+
+def normalizer(df):
+	df_std = df.std()
+	df_mean = df.mean()
+	normalized_df=(df-df_mean)/df_std
+	return normalized_df, df_std, df_mean
+
+def unnormalizer(df, df_std, df_mean):
+	#need to make df 2d instead of 3d...
+	std=df_std[0]
+	mean=df_mean[0]
+	unnormalized_df=(df*std)+mean
+	return unnormalized_df
