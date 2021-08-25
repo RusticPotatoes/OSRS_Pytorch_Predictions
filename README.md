@@ -1,5 +1,14 @@
 # OSRS_Pytorch_Predictions
 
+This is a work in progress, forecasted data and models have not been tested for accuracy. Intended for educational purposes. 
+
+## Training Image
+![alt text](https://github.com/RusticPotatoes/OSRS_Pytorch_Predictions/blob/main/resources/elder_maul_training.png)
+## Forecast Image
+![alt text](https://github.com/RusticPotatoes/OSRS_Pytorch_Predictions/blob/main/resources/elder_maul_forecast.png)
+## Price History Image
+![alt text](https://github.com/RusticPotatoes/OSRS_Pytorch_Predictions/blob/main/resources/elder_maul_history.png)
+
 ## Setup
 
 1. Run the setup.py via the command: 
