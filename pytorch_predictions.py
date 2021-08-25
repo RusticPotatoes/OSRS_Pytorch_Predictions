@@ -36,7 +36,7 @@ def main():
 	##########################
 	save_img=True #saves to img folder
 	lookback=40 #choose a sequence length
-	num_epochs = 400
+	num_epochs = 100
 	verbose = True
 	fut_pred = 20
 	##########################
