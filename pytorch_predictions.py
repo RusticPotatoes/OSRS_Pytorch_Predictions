@@ -234,6 +234,14 @@ def main():
 			print(output_img)
 			test_pred_fig.write_image(engine="kaleido", file=output_img)
 
+			# save models_dir
+			if not os.path.exists(models_dir):
+				mode = 0o777
+				os.makedirs(models_dir)
+			output_model = os.path.join(models_dir,f"{item_to_predict}_{feature_to_predict_name}.pth")
+			print(output_model)
+			torch.save(model_lstm.state_dict(), output_model)
+
 		######################################################
 
 		############## TODO: Use the GRU model ###############

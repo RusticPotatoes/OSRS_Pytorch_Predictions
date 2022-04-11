@@ -118,3 +118,6 @@ dmypy.json
 
 # exclude img files for readme.md
 !resources/*.png
+
+# exclude models for now
+models/
