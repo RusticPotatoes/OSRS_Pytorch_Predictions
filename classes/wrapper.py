@@ -1,6 +1,8 @@
 import requests
 import pandas as pd
 # https://github.com/JonasHogman/osrs-prices-api-wrapper
+
+
 class PricesAPI(object):
 	def __init__(self, user_agent, contact):
 		self.base_url = "https://prices.runescape.wiki/api/v1/osrs/"
@@ -12,11 +14,9 @@ class PricesAPI(object):
 	def latest_df(self, mapping=False):
 		prices = requests.get(self.base_url + "latest", headers=self.user_agent).json()["data"]
 		prices = (pd.DataFrame.from_dict(prices)
-				  .T
-				  .fillna(0)
-				  .astype("int")
-				  .rename_axis("id")
-				  )
+												.T.fillna(0)
+												.astype("int")
+												.rename_axis("id"))
 		prices.index = prices.index.astype("int")
 		if mapping:
 			if not self._mappings:
@@ -39,21 +39,19 @@ class PricesAPI(object):
 			volumes = self.__merge_mapping_df(volumes)
 		return volumes
 
-
 	def prices_df(self, time, mapping=False):
 		if time in self.times:
 			prices = requests.get(self.base_url + time, headers=self.user_agent).json()
-			prices_data=prices["data"]
-			prices_timestamp=prices['timestamp']
+			prices_data = prices["data"]
+			prices_timestamp = prices['timestamp']
 			prices_df = (pd.DataFrame.from_dict(prices_data)
-						 .T
-						 .fillna(0)
-						 .astype("int")
-						 .rename_axis("id")
-						 .reset_index()
-						 .rename(columns={"id":"item_id"})
-						 .astype({"item_id": "int"})
-						 )
+									.T.fillna(0)
+									.astype("int")
+									.rename_axis("id")
+									.reset_index()
+									.rename(columns={"id":"item_id"})
+									.astype({"item_id": "int"}))
+						
 			prices_df.index.name = 'index'
 			prices_df['timestamp']=prices_timestamp
 			#print(prices_df)
@@ -65,27 +63,25 @@ class PricesAPI(object):
 		else:
 			raise ValueError(f"Invalid timeframe selected, valid options are: {self.times}")
 
-
 	def timeseries_df(self, step, id):
 		if step in self.times:
 			timeseries = requests.get(
 				self.base_url + f"timeseries?timestep={step}&id={id}", headers=self.user_agent
 			).json()
-			timeseries_data=timeseries["data"]
-			item_id=timeseries['itemId']
+			timeseries_data = timeseries["data"]
+			item_id = timeseries['itemId']
 			timeseries_data = (pd.DataFrame.from_dict(timeseries_data)
-						  .fillna(0)
-						  .astype("int")
-						  .rename_axis("id")
-						  )
-			timeseries_data["item_id"]= item_id
+											.fillna(0)
+											.astype("int")
+											.rename_axis("id"))
+			timeseries_data["item_id"] = item_id
 			return timeseries_data
 		else:
 			raise ValueError(f"Invalid timeframe selected, valid options are: {self.times}")
 
 	def mapping_df(self):
 		mapping = requests.get(self.base_url + "mapping", headers=self.user_agent).json()
-		#print(mapping)
+		# print(mapping)
 		mapping = (
 			pd.DataFrame.from_dict(mapping)
 			.fillna(0)

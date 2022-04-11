@@ -1,49 +1,50 @@
-#https://www.kaggle.com/rodsaldanha/stock-prediction-pytorch
+# https://www.kaggle.com/rodsaldanha/stock-prediction-pytorch
 from classes import utils, plot, trainers, models
 from classes.wrapper import PricesAPI
 from classes.models import LSTM
-import numpy as np 
+import numpy as np
 import pandas as pd 
 import os
 from sklearn.preprocessing import MinMaxScaler
 import torch
 import torch.nn as nn
-import math, time
+import math
+import time
 from sklearn.metrics import mean_squared_error
-
 
 # known project folders 
 parent_dir = os.path.dirname(os.path.realpath(__file__))
-models_dir = os.path.join(parent_dir,"models")
-features_dir = os.path.join(models_dir,"features")
-img_dir = os.path.join(parent_dir,'imgs')
-forecast_dir=os.path.join(img_dir,'forecasts')
-training_dir=os.path.join(img_dir,'trainings')
-prices_dir=os.path.join(img_dir,'prices')
-data_dir = os.path.join(parent_dir,'data')
-items_to_predict_file=os.path.join(parent_dir,"items_to_predict.csv")
+models_dir = os.path.join(parent_dir, "models")
+features_dir = os.path.join(models_dir, "features")
+img_dir = os.path.join(parent_dir, 'imgs')
+forecast_dir = os.path.join(img_dir, 'forecasts')
+training_dir = os.path.join(img_dir, 'trainings')
+prices_dir = os.path.join(img_dir, 'prices')
+data_dir = os.path.join(parent_dir, 'data')
+items_to_predict_file = os.path.join(parent_dir, "items_to_predict.csv")
 
-#low_price = buy_average = avgLowPrice
-#high_price = sell_average = avgHighPrice
-#low_volume= buy_quantity = lowPriceVolume
-#high_volume = sell_quantity = highPriceVolume
+# low_price = buy_average = avgLowPrice
+# high_price = sell_average = avgHighPrice
+# low_volume= buy_quantity = lowPriceVolume
+# high_volume = sell_quantity = highPriceVolume
+
 
 def main():
-	global parent_dir,models_dir,features_dir,img_dir,data_dir,items_to_predict_file,forecast_dir,training_dir,prices_dir
+	global parent_dir, models_dir, features_dir, img_dir, data_dir, items_to_predict_file, forecast_dir, training_dir, prices_dir
 	
 	##########################
-	#### config variables ####
+	#    config variables    #
 	##########################
-	save_img=True #saves to img folder
-	lookback=40 #choose a sequence length
-	num_epochs = 100
+	save_img = True  # saves to img folder
+	lookback = 40  # choose a sequence length
+	num_epochs = 10
 	verbose = True
-	fut_pred = 20
+	fut_pred = 10
 	##########################
 	##########################
 
 	##########################
-	###### DO NOT TOUCH ######
+	#      DO NOT TOUCH      #
 	##########################
 	input_dim = 1
 	hidden_dim = 32
@@ -55,22 +56,22 @@ def main():
 	# import the items to use 
 	items_to_predict_df = pd.read_csv(items_to_predict_file)
 	items_to_predict_df_names = items_to_predict_df['name']
-	features_to_predict_df_names=items_to_predict_df.columns.values[1:3]
+	features_to_predict_df_names = items_to_predict_df.columns.values[1:3]
 
 	# query runelite for prices 
-	apimapping = PricesAPI("GEPrediction-OSRS","GEPRediction-OSRS")
+	apimapping = PricesAPI("GEPrediction-OSRS", "GEPRediction-OSRS")
 	item_mapping_df = apimapping.mapping_df()
 
 	count = 0
 	for item_to_predict in items_to_predict_df_names:
 		for feature_to_predict_name in features_to_predict_df_names:
 			# for each item
-			apitimeseries = PricesAPI("OSRS_PYTORCH_PREDICTIONS","OSRS_PYTORCH_PREDICTIONS")
-			runelite_timeseries_df = apitimeseries.timeseries_df("5m", utils.getIDFromName(item_mapping_df,item_to_predict)) 
+			apitimeseries = PricesAPI("OSRS_PYTORCH_PREDICTIONS", "OSRS_PYTORCH_PREDICTIONS")
+			runelite_timeseries_df = apitimeseries.timeseries_df("5m", utils.getIDFromName(item_mapping_df, item_to_predict)) 
 			# add the name column back
 			runelite_timeseries_df['name'] = item_to_predict
 			# epoch unix to datetime
-			runelite_timeseries_df['timestamp']=pd.to_datetime(runelite_timeseries_df['timestamp'], unit='s')
+			runelite_timeseries_df['timestamp'] = pd.to_datetime(runelite_timeseries_df['timestamp'], unit='s')
 			# fix 0's to ba nans 
 			runelite_timeseries_df.replace({'0':np.nan, 0:np.nan}, inplace=True)
 
@@ -82,26 +83,31 @@ def main():
 			if verbose: price.info()
 
 			# clear NaNs
-			price=price.dropna()
+			price = price.dropna()
 	
 			if save_img:
-				#https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.xticks.html
-				item_to_predict_dataset_plot = plot.plot_single(dataset= price[feature_to_predict_name].values, 
-								xaxisticks=(range(0,price.shape[0],30)), # stopped here price.shape is wrong, from 0 to shape range (300) increment 30
-								xaxisdata=((price.index.values)[::30]), #loc[::(price.shape[0])]
-								title=(item_to_predict), 
-								xlabel='Date', 
-								ylabel=f'{items_to_predict_df.columns[1]}')
-				utils.save_plot_to_png(item_to_predict_dataset_plot, f"{item_to_predict}_{feature_to_predict_name}_history.png",prices_dir)
+				# https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.xticks.html
+				item_to_predict_dataset_plot = plot.plot_single(
+					dataset=price[feature_to_predict_name].values,
+					xaxisticks=(range(0,price.shape[0],30)),  # from 0 to shape range (300) increment 30
+					xaxisdata=((price.index.values)[::30]),  # loc[::(price.shape[0])]
+					title=(item_to_predict),
+					xlabel='Date',
+					ylabel=f'{items_to_predict_df.columns[1]}')
+					
+				utils.save_plot_to_png(
+					item_to_predict_dataset_plot,
+					f"{item_to_predict}_{feature_to_predict_name}_history.png",
+					prices_dir)
 
 			# normalizing 
 			# should not use min max scaling for price data that has no theoretical max value
-			## 			scaler = MinMaxScaler(feature_range=(-1,1))
-			##			price_reshaped= price.values.reshape(-1,1)
+			#  			scaler = MinMaxScaler(feature_range=(-1,1))
+			# 			price_reshaped= price.values.reshape(-1,1)
 			# 			#scale the data
-			#			price_scaled =scaler.fit_transform(price_reshaped)
+			# 			price_scaled =scaler.fit_transform(price_reshaped)
 			# standardization by normalization eg (values-mean)/std
-  			# normalized_df, df_std, df_mean
+			# normalized_df, df_std, df_mean
 			price_normalized_df, price_std, price_mean = utils.normalizer(price)
 			price_reshaped= price.values.reshape(-1,1)
 			price_normalized_reshaped_df= price_normalized_df.values.reshape(-1,1)
