@@ -1,4 +1,5 @@
 # https://www.kaggle.com/rodsaldanha/stock-prediction-pytorch
+from matplotlib.style import use
 from classes import utils, plot, trainers, models
 from classes.wrapper import PricesAPI
 from classes.models import LSTM
@@ -63,8 +64,31 @@ def main():
 	item_mapping_df = apimapping.mapping_df()
 
 	count = 0
+
+	# check if any models exist 
+	modelsFound = False
+	useSavedModels = False
+	modelFiles = os.listdir(models_dir)
+	for modelfile in modelFiles:
+		if modelfile.endswith(".pth"):
+			modelsFound = True
+	
+	if modelsFound: 
+		useSavedModels = utils.query_yes_no("Would you like to use saved models?")
+	if count == 0 : print('Note: Lower normalized RMSE scores are better')
 	for item_to_predict in items_to_predict_df_names:
 		for feature_to_predict_name in features_to_predict_df_names:
+
+			output_model = os.path.join(models_dir, f"{item_to_predict}_{feature_to_predict_name}.pth")
+
+			# create models dir if it doesn't exist
+			if not os.path.exists(models_dir):
+				mode = 0o777
+				os.makedirs(models_dir)
+
+			######################
+			#  Gather OSRS DATA  #
+			######################
 			# for each item
 			apitimeseries = PricesAPI("OSRS_PYTORCH_PREDICTIONS", "OSRS_PYTORCH_PREDICTIONS")
 			runelite_timeseries_df = apitimeseries.timeseries_df("5m", utils.getIDFromName(item_mapping_df, item_to_predict)) 
@@ -100,7 +124,7 @@ def main():
 					f"{item_to_predict}_{feature_to_predict_name}_history.png",
 					prices_dir)
 
-			# normalizing 
+			# normalizing osrs data
 			# should not use min max scaling for price data that has no theoretical max value
 			#  			scaler = MinMaxScaler(feature_range=(-1,1))
 			# 			price_reshaped= price.values.reshape(-1,1)
@@ -116,9 +140,11 @@ def main():
 			# needed for later forecasting 1,X,1 shape eg 1,300,1
 			price_scaled_reshaped_3d = price_scaled.reshape(1,price.shape[0],1)
 
-			#split the data up 
+			# split the data up 
 			x_train, y_train, x_test, y_test = utils.split_data_3d(price_scaled,lookback)
-
+			if useSavedModels:
+				x_test, y_test = utils.split_data_3d_testonly(price_scaled,lookback)
+			
 			if verbose: print('x_train.shape = ',x_train.shape)
 			if verbose: print('y_train.shape = ',y_train.shape)
 			if verbose: print('x_test.shape = ',x_test.shape)
@@ -128,10 +154,14 @@ def main():
 			x_train_tensor = torch.from_numpy(x_train).type(torch.Tensor)
 			#if verbose: print(type(x_train_tensor))
 			x_test_tensor = torch.from_numpy(x_test).type(torch.Tensor)
+			if useSavedModels:
+				x_test_tensor = torch.from_numpy(x_test).type(torch.Tensor)
 			#if verbose: print(type(x_test_tensor))
 
 			# lstm y train and test
 			y_train_lstm = torch.from_numpy(y_train).type(torch.Tensor)
+			if useSavedModels: 
+				y_test_lstm = torch.from_numpy(y_test).type(torch.Tensor)
 			y_test_lstm = torch.from_numpy(y_test).type(torch.Tensor)
 			# list for results
 			lstm_results=[]
@@ -141,48 +171,55 @@ def main():
 			y_test_gru = torch.from_numpy(y_test).type(torch.Tensor)
 
 			################# use the LSTM model #################
+
+			# Define the Models
+
 			model_lstm = LSTM(input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim, num_layers=num_layers)
-			
 			criterion = torch.nn.MSELoss(reduction='mean')
 			optimiser_lstm = torch.optim.Adam(model_lstm.parameters(), lr=0.01)
 			hist_lstm = np.zeros(num_epochs)
 
-			# train predictions
-			y_train_pred_lstm, hist_lstm = trainers.train(model_lstm, criterion, optimiser_lstm, num_epochs, x_train_tensor, y_train_lstm, verbose)
-			# prediction lstm and original rrom lstm 
-			# inverse predictions from train
-			#y_train_pred_lstm_inverse = scaler.inverse_transform(y_train_pred_lstm.detach().numpy())
-			y_train_pred_lstm_inverse = utils.unnormalizer(y_train_pred_lstm.detach().numpy(),price_std,price_mean)
-			y_train_pred_lstm_inverse_df = pd.DataFrame(y_train_pred_lstm_inverse)
-
-
-			#y_train_lstm_inverse = scaler.inverse_transform(y_train_lstm.detach().numpy())
-			y_train_lstm_inverse = utils.unnormalizer(y_train_lstm.detach().numpy(),price_std,price_mean)
-			y_train_lstm_inverse_df = pd.DataFrame(y_train_lstm_inverse)
-			# plot original and prediction graphs with training loss
-			if save_img:
-				dual_plot_lstm = plot.plot_dual(original=y_train_lstm_inverse_df, predict=y_train_pred_lstm_inverse_df, hist=hist_lstm, modelname="LSTM", title=f"{item_to_predict}", xlabel="Date", ylabel=f"Gold (GP) [{feature_to_predict_name}]")
-				utils.save_plot_to_png(dual_plot_lstm, f"lstm_dual_{item_to_predict}_{feature_to_predict_name}.png",training_dir)
+			if useSavedModels: 
+				model_lstm.load_state_dict(torch.load(output_model))
+			if not useSavedModels: 
+				# train predictions
+				y_train_pred_lstm, hist_lstm = trainers.train(model_lstm, criterion, optimiser_lstm, num_epochs, x_train_tensor, y_train_lstm, verbose)
+				# prediction lstm and original rrom lstm 
+				# inverse predictions from train
+				y_train_pred_lstm_detatched = y_train_pred_lstm.detach().numpy()
+				y_train_pred_lstm_inverse = utils.unnormalizer(y_train_pred_lstm_detatched,price_std,price_mean)
+				y_train_pred_lstm_inverse_df = pd.DataFrame(y_train_pred_lstm_inverse)
+				y_train_lstm_detatched = y_train_lstm.detach().numpy()
+				y_train_lstm_inverse = utils.unnormalizer(y_train_lstm_detatched,price_std,price_mean)
+				y_train_lstm_inverse_df = pd.DataFrame(y_train_lstm_inverse)
+				# plot original and prediction graphs with training loss
+				if save_img:
+					dual_plot_lstm = plot.plot_dual(original=y_train_lstm_inverse_df, predict=y_train_pred_lstm_inverse_df, hist=hist_lstm, modelname="LSTM", title=f"{item_to_predict}", xlabel="Date", ylabel=f"Gold (GP) [{feature_to_predict_name}]")
+					utils.save_plot_to_png(dual_plot_lstm, f"lstm_dual_{item_to_predict}_{feature_to_predict_name}.png",training_dir)
 
 			#test and then inverse test predictions 
 			model_lstm.eval()
+
 			y_test_pred_lstm= model_lstm(x_test_tensor) 
 			##########################################
-			#y_test_pred_lstm_inverse = scaler.inverse_transform(y_test_pred_lstm.detach().numpy())
-			y_test_pred_lstm_inverse = utils.unnormalizer(y_test_pred_lstm.detach().numpy(),price_std,price_mean)
+			y_test_pred_lstm_detatched = y_test_pred_lstm.detach().numpy()
+			y_test_pred_lstm_inverse = utils.unnormalizer(y_test_pred_lstm_detatched,price_std,price_mean)
 			y_test_pred_lstm_inverse_df=pd.DataFrame(y_test_pred_lstm_inverse)
-
-			#y_test_lstm_inverse = scaler.inverse_transform(y_test_lstm.detach().numpy())
-			y_test_lstm_inverse = utils.unnormalizer(y_test_lstm.detach().numpy(),price_std,price_mean)
+			y_test_lstm_detatched = y_test_lstm.detach().numpy()
+			y_test_lstm_inverse = utils.unnormalizer(y_test_lstm_detatched,price_std,price_mean)
 			y_test_lstm_inverse_df = pd.DataFrame(y_test_lstm_inverse)
+			if not useSavedModels:
+				# calculate root mean squared error
+				# trainScore_lstm = math.sqrt(mean_squared_error(y_train_lstm_inverse[:,0], y_train_pred_lstm_inverse[:,0]))
+				trainScore_lstm = math.sqrt(mean_squared_error(y_train_lstm_detatched[:,0], y_train_pred_lstm_detatched[:,0]))
+				print(f'{item_to_predict} {feature_to_predict_name}: '+'%.2f RMSE' % (trainScore_lstm))
+			testScore_lstm = math.sqrt(mean_squared_error(y_test_lstm_detatched[:,0], y_test_pred_lstm_detatched[:,0]))
+			print(f'{item_to_predict} {feature_to_predict_name}: '+ '%.2f RMSE' % (testScore_lstm))
 
-			# calculate root mean squared error
-			trainScore_lstm = math.sqrt(mean_squared_error(y_train_lstm_inverse[:,0], y_train_pred_lstm_inverse[:,0]))
-			if verbose: print('Train Score: %.2f RMSE' % (trainScore_lstm))
-			testScore_lstm = math.sqrt(mean_squared_error(y_test_lstm_inverse[:,0], y_test_pred_lstm_inverse[:,0]))
-			if verbose: print('Test Score: %.2f RMSE' % (testScore_lstm))
-	
-			lstm_results.append([trainScore_lstm,testScore_lstm])
+			if not useSavedModels:
+				lstm_results.append([trainScore_lstm,testScore_lstm])
+			if useSavedModels:
+				lstm_results.append([testScore_lstm,testScore_lstm])
 			########################################################################################################
 
 			#future prediction https://stackabuse.com/time-series-prediction-using-lstm-with-pytorch-in-python/
@@ -197,30 +234,35 @@ def main():
 			#if verbose: print(z_test_pred_lstm_inverse_df.tail(fut_pred+1))
 
 			##########################################################################################################################
-
-			# shift train predictions for plotting
-			trainPredictPlot = np.empty((price.shape[0]+fut_pred,1))
-			trainPredictPlot[:, :] = np.nan
-			print(f"trainPredictPlot: {lookback}: {len(y_train_pred_lstm_inverse)+lookback} , :")
-			trainPredictPlot[lookback:len(y_train_pred_lstm_inverse)+lookback, :] = y_train_pred_lstm_inverse
+			if not useSavedModels:
+				# shift train predictions for plotting
+				trainPredictPlot = np.empty((price.shape[0]+fut_pred,1))
+				trainPredictPlot[:, :] = np.nan
+				if verbose: print(f"trainPredictPlot: {lookback}: {len(y_train_pred_lstm_inverse)+lookback} , :")
+				trainPredictPlot[lookback:len(y_train_pred_lstm_inverse)+lookback, :] = y_train_pred_lstm_inverse
 
 			# shift test predictions for plotting
 			testPredictPlot =  np.empty((price.shape[0]+fut_pred,1))
 			testPredictPlot[:, :] = np.nan
-			print(f"test predict plot: {len(y_train_pred_lstm_inverse)+lookback} : {len(price)} , :")
-			testPredictPlot[len(y_train_pred_lstm_inverse)+lookback:len(price), :] = y_test_pred_lstm_inverse
-			
+			if not useSavedModels:
+				if verbose: print(f"test predict plot: {len(y_train_pred_lstm_inverse)+lookback} : {len(price)} , :")
+				testPredictPlot[len(y_train_pred_lstm_inverse)+lookback:len(price), :] = y_test_pred_lstm_inverse
+			if useSavedModels:
+				if verbose: print(f"test predict plot: {lookback} : {len(price)} , :")
+				testPredictPlot[lookback:len(price), :] = y_test_pred_lstm_inverse
 			forecastPredictPlot=  np.empty((price.shape[0]+fut_pred,1))
 			forecastPredictPlot[:, :] = np.nan
-			print(f"forecast predict plot: {price.shape[0]} : {price.shape[0]+fut_pred} , :")
+			if verbose: print(f"forecast predict plot: {price.shape[0]} : {price.shape[0]+fut_pred} , :")
 			forecastPredictPlot[price.shape[0]:price.shape[0]+fut_pred,:]=z_forecast_lstm_inverse
 
 			originalPlot =  np.empty((price.shape[0]+fut_pred,1))
 			originalPlot[:, :] = np.nan
-			print(f"{len(price_reshaped)}:,:")
+			if verbose: print(f"{len(price_reshaped)}:,:")
 			originalPlot[0:len(price_reshaped),:]= price_reshaped
-
-			predictions = trainPredictPlot
+			if not useSavedModels:
+				predictions = trainPredictPlot
+			if useSavedModels:
+				predictions = testPredictPlot # lazy approach right now, overwrite train with test data
 			predictions = np.append(predictions, testPredictPlot, axis=1)
 			predictions = np.append(predictions, forecastPredictPlot, axis=1)
 			predictions = np.append(predictions, originalPlot, axis=1)
@@ -231,16 +273,12 @@ def main():
 				mode = 0o777
 				os.makedirs(forecast_dir)
 			output_img=os.path.join(forecast_dir,f"lstm_dual_{item_to_predict}_{feature_to_predict_name}_train_test_forcast.png").replace(" ","_")
-			print(output_img)
+			# print(output_img)
 			test_pred_fig.write_image(engine="kaleido", file=output_img)
 
-			# save models_dir
-			if not os.path.exists(models_dir):
-				mode = 0o777
-				os.makedirs(models_dir)
-			output_model = os.path.join(models_dir,f"{item_to_predict}_{feature_to_predict_name}.pth")
-			print(output_model)
-			torch.save(model_lstm.state_dict(), output_model)
+			# Save the model if not using already saved model 
+			if not useSavedModels:
+				torch.save(model_lstm.state_dict(), output_model)
 
 		######################################################
 
@@ -253,3 +291,4 @@ def main():
 
 if __name__ == "__main__":
 	main()
+	print("Done!")

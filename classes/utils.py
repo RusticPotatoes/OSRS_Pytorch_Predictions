@@ -9,6 +9,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler,Normalizer
 import torch
 import torch.nn as nn
+import sys
 
 
 # ================== Utility FUNCTIONS ================== 
@@ -45,7 +46,7 @@ def save_plot_to_png(input_plot, filename, folderpath):
 	global img_dir
 	if folderpath is not None: #check subdir path and make it, append the subdir to img_dir
 		if not os.path.exists(folderpath): os.makedirs(folderpath, mode)
-	print(os.path.join(folderpath, filename))
+	# print(os.path.join(folderpath, filename))
 	input_plot.savefig(os.path.join(folderpath, filename.replace(" ", "_")))  # '{}_{}.png'.format(item_to_predict,index))
 
 
@@ -96,7 +97,7 @@ def split_data_3d(dataset, lookback, lookforward=0):
 	data = np.array(data);
 	test_set_size = int(np.round(0.2*data.shape[0]));
 	train_set_size = data.shape[0] - (test_set_size);
-	print(f":{train_set_size}:-1,:")
+	# print(f":{train_set_size}:-1,:")
 
 	x_train = data[:train_set_size, :-1, :]
 	y_train = data[:train_set_size, -1, :]
@@ -108,6 +109,31 @@ def split_data_3d(dataset, lookback, lookforward=0):
 		forcast = 0
 	
 	return x_train, y_train, x_test, y_test
+
+
+def split_data_3d_testonly(dataset, lookback, lookforward=0):
+	if not isinstance(dataset, np.ndarray):
+		data_raw = dataset.to_numpy()  # convert to numpy array
+	else:
+		data_raw = dataset
+	data = []
+	
+	# create all possible sequences of length seq_len
+	for index in range(len(data_raw) - lookback): 
+		data.append(data_raw[index: index + lookback])
+	
+	data = np.array(data);
+	test_set_size = int(np.round(0.2*data.shape[0]));
+	train_set_size = data.shape[0] - (test_set_size);
+	# print(f":{train_set_size}:-1,:")
+	
+	x_test = data[:, :-1, :]
+	y_test = data[:, -1, :]
+
+	if lookforward > 0:
+		forcast = 0
+	
+	return x_test, y_test
 
 def scale_data(scaler, transformer, data, inverse=False):
 	if isinstance(data, pd.DataFrame):	
@@ -135,7 +161,7 @@ def forecast(model,dataset,lookback,fut_pred): # abstracted to models
 	for i in range(fut_pred):
 		seq = torch_tensor_dataset[-1:,-lookback:,:]
 		#seq_2d = seq[0,:,:]
-		print(seq.shape)
+		# print(seq.shape)
 		with torch.no_grad():
 			model.hidden = (torch.zeros(1, 1, model.hidden_dim),
 							torch.zeros(1, 1, model.hidden_dim))
@@ -162,3 +188,33 @@ def unnormalizer(df, df_std, df_mean):
 	mean=df_mean[0]
 	unnormalized_df=(df*std)+mean
 	return unnormalized_df
+
+def query_yes_no(question, default="yes"):
+    """Ask a yes/no question via raw_input() and return their answer.
+
+    "question" is a string that is presented to the user.
+    "default" is the presumed answer if the user just hits <Enter>.
+            It must be "yes" (the default), "no" or None (meaning
+            an answer is required of the user).
+
+    The "answer" return value is True for "yes" or False for "no".
+    """
+    valid = {"yes": True, "y": True, "ye": True, "no": False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default == "yes":
+        prompt = " [Y/n] "
+    elif default == "no":
+        prompt = " [y/N] "
+    else:
+        raise ValueError("invalid default answer: '%s'" % default)
+
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = input().lower()
+        if default is not None and choice == "":
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' " "(or 'y' or 'n').\n")
