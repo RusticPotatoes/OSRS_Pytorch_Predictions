@@ -36,12 +36,13 @@ def clear_pngs(img_dir):
 			os.remove(os.path.join(img_dir,file)) 
 
 def save_plot_to_png(input_plot, filename, folderpath):   			
-	mode = 0o666
+	mode = 0o777
 	global img_dir
 	if folderpath is not None: #check subdir path and make it, append the subdir to img_dir
 		if not os.path.exists(folderpath): os.makedirs(folderpath, mode)
 	print(os.path.join(folderpath,filename))
-	input_plot.savefig(os.path.join(folderpath,filename))#'{}_{}.png'.format(item_to_predict,index))
+	input_plot.savefig(os.path.join(folderpath,filename.replace(" ", "_")
+))#'{}_{}.png'.format(item_to_predict,index))
 
 def clear_folder(folder):
 	for filename in os.listdir(folder):

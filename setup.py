@@ -21,6 +21,7 @@ setup(
 		'imageio',
 		'seaborn',
 		'torch',
-		'plotly'
+		'plotly',
+		'kaleido'
 		]
 	)

@@ -14,12 +14,12 @@ This is a work in progress, forecasted data and models have not been tested for 
 1. Run the setup.py via the command: 
 
     ```bash
-    pip /path/to/project/setup.py install
+    python3 setup.py install --user
     ```
 2. Check to see if you have gpu support enabled by running the check_gpu.py, will return true/false: 
 
     ```bash
-    python /path/to/project/check_gpu.py
+    python3 check_gpu.py --user
     ```
 3. Add items to the items_to_predict.csv, if you are editing it via a text editor please be sure to add 4 commas: 
 
@@ -29,7 +29,7 @@ This is a work in progress, forecasted data and models have not been tested for 
 4. Run the pytorch_predictions.py file: 
 
     ```bash
-    python /path/to/project/pytorch_predictions.py
+    python3 pytorch_predictions.py
     ```
 5. Images will be generated and placed in an img folder located in the root project directory.  This directory includes sub folders for all prices, training, and forecast images. 
 

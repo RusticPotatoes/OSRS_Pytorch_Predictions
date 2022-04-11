@@ -222,7 +222,7 @@ def main():
 
 			test_pred_fig = plot.plot_multi(result,title=f"{item_to_predict} (LSTM)",feature=feature_to_predict_name)
 			if not os.path.exists(forecast_dir):
-				mode = 0o666
+				mode = 0o777
 				os.makedirs(forecast_dir)
 			output_img=os.path.join(forecast_dir,f"lstm_dual_{item_to_predict}_{feature_to_predict_name}_train_test_forcast.png").replace(" ","_")
 			print(output_img)
