@@ -7,23 +7,20 @@
 </head>
 
 <body>
-    <select id="imageSelect">
-        {% for image in images %}
-        <option value="{{ image }}">{{ image }}</option>
-        {% endfor %}
-    </select>
-
     <img id="imageView" src="" alt="Image">
 
     <script>
-        $(document).ready(function () {
-            $('#imageSelect').change(function () {
-                var selectedImage = $(this).val();
-                $('#imageView').attr('src', '/img/' + selectedImage);
-            });
+        var images = {{ images| tojson }};
+        var index = 0;
 
-            // Trigger change event to display the first image
-            $('#imageSelect').trigger('change');
+        function changeImage() {
+            $('#imageView').attr('src', '/img/' + images[index]);
+            index = (index + 1) % images.length;  // Move to the next image, loop back to the first image at the end
+        }
+
+        $(document).ready(function () {
+            changeImage();  // Display the first image
+            setInterval(changeImage, 3000);  // Change image every 3000 milliseconds (3 seconds)
         });
     </script>
 </body>

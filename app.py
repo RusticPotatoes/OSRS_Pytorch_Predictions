@@ -6,7 +6,9 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
-    images = os.listdir("imgs/forecasts")
+    images = os.listdir(
+        "imgs/forecasts"
+    )  # Read the directory contents each time the home page is requested
     return render_template("home.html", images=images)
 
 

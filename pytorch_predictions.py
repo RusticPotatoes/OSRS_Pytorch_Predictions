@@ -88,8 +88,8 @@ def main():
         if modelfile.endswith(".pth"):
             modelsFound = True
 
-    if modelsFound:
-        useSavedModels = utils.query_yes_no("Would you like to use saved models?")
+    # if modelsFound:
+    #     useSavedModels = utils.query_yes_no("Would you like to use saved models?")
     if count == 0:
         print("Note: Lower normalized RMSE scores are better")
     for item_to_predict in items_to_predict_df_names:

@@ -60,3 +60,22 @@ freeze:
 flask:
 	export FLASK_APP=app
 	flask run
+
+docker-up: ## Startup docker
+	docker-compose --verbose up
+
+docker-build: ## Startup docker with build switch
+	docker-compose --verbose up --build
+
+docker-down: ## shutdown docker
+	docker-compose down
+
+docker-rebuild: docker-down ## shuts down docker then brings it up and rebuilds
+	docker-compose --verbose up --build
+
+docker-force-rebuild: docker-down ## shuts down docker than brings it up and force rebuilds
+	docker-compose --verbose up --build --force-recreate
+
+docker-flask:
+	docker build -t myflaskapp .
+	
