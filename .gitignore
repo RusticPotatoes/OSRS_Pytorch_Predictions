@@ -121,3 +121,5 @@ dmypy.json
 
 # exclude models for now
 models/
+
+imgs/
