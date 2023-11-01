@@ -56,3 +56,7 @@ venv-remove: ## removes the .venv folder
 
 freeze:
 	pip freeze > requirements.txt
+
+flask:
+	export FLASK_APP=app
+	flask run
