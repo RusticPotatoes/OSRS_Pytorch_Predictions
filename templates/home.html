@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Image Viewer</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+
+<body>
+    <select id="imageSelect">
+        {% for image in images %}
+        <option value="{{ image }}">{{ image }}</option>
+        {% endfor %}
+    </select>
+
+    <img id="imageView" src="" alt="Image">
+
+    <script>
+        $(document).ready(function () {
+            $('#imageSelect').change(function () {
+                var selectedImage = $(this).val();
+                $('#imageView').attr('src', '/img/' + selectedImage);
+            });
+
+            // Trigger change event to display the first image
+            $('#imageSelect').trigger('change');
+        });
+    </script>
+</body>
+
+</html>
