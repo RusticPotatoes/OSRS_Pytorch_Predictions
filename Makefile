@@ -48,11 +48,6 @@ test-setup: ## installs pytest singular package for local testing
 requirements: ## installs all requirements
 	python3 -m pip install -r requirements.txt
 
-docs: # opens your browser to the webapps testing docs
-	open http://localhost:5000/docs
-	xdg-open http://localhost:5000/docs
-	. http://localhost:5000/docs
-
 venv-create: venv-remove ## cleans the .venv then creates a venv in the folder .venv
 	python3 -m venv .venv
 
