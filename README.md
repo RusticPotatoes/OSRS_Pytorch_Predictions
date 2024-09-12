@@ -9,29 +9,73 @@ This is a work in progress, forecasted data and models have not been tested for 
 ## Price History Image
 ![alt text](https://github.com/RusticPotatoes/OSRS_Pytorch_Predictions/blob/main/resources/elder_maul_history.png)
 
-## Setup
+## Setting Up the Virtual Environment
 
-1. Run the setup.py via the command: 
+1. Install `virtualenv` if you haven't already:
+
+    ```bash
+    pip3 install virtualenv
+    ```
+
+2. Navigate to your project directory and create a virtual environment:
+
+    ```bash
+    virtualenv venv
+    ```
+
+3. Activate the virtual environment:
+
+    - On macOS and Linux:
+
+        ```bash
+        source venv/bin/activate
+        ```
+
+    - On Windows:
+
+        ```bash
+        .\venv\Scripts\activate
+        ```
+
+4. Install the project dependencies:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+5. To deactivate the virtual environment when you're done:
+
+    ```bash
+    deactivate
+    ```
+
+## Project Setup
+
+1. Run the `setup.py` via the command:
 
     ```bash
     python3 setup.py install --user
     ```
-2. Check to see if you have gpu support enabled by running the check_gpu.py, will return true/false: 
+
+2. Check to see if you have GPU support enabled by running `check_gpu.py`, will return true/false:
 
     ```bash
-    python3 check_gpu.py --user
+    python3 check_gpu.py
     ```
-3. Add items to the items_to_predict.csv, if you are editing it via a text editor please be sure to add 4 commas: 
+
+3. Add items to the `items_to_predict.csv`, if you are editing it via a text editor please be sure to add 4 commas:
 
     ```
     item name,,,,
     ```
-4. Run the pytorch_predictions.py file: 
+
+4. Run the `pytorch_predictions.py` file:
 
     ```bash
     python3 pytorch_predictions.py
     ```
-5. Images will be generated and placed in an img folder located in the root project directory.  This directory includes sub folders for all prices, training, and forecast images. 
+
+5. Images will be generated and placed in an `img` folder located in the root project directory. This directory includes subfolders for all prices, training, and forecast images.
 
 ## Citations:
 ### Web
